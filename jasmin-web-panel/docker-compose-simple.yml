@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  jasmin-web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DEBUG=False
+      - DJANGO_SETTINGS_MODULE=config.settings.pro
+      - ALLOWED_HOSTS=*
+    volumes:
+      - .:/app
+      - web_public:/app/public
+      - web_logs:/app/logs
+    depends_on:
+      - db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  db:
+    image: postgres:16.0-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: jasmin
+      POSTGRES_USER: jasmin
+      POSTGRES_PASSWORD: top_secret
+
+volumes:
+  web_public:
+    driver: local
+  web_logs:
+    driver: local
+  postgres_data:
+    driver: local

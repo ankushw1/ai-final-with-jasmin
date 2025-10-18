@@ -1,0 +1,26 @@
+{% extends "auth/base.html" %}
+{% load static i18n %}
+{% block title %}{% trans "Sign In" %} - Jasmin Web Panel{% endblock title %}
+{% block extracss %}{% endblock extracss %}
+{% block content %}
+<div class="p-5">
+    <div class="text-center">
+        <h1 class="h4 text-gray-900 mb-4">{% trans 'Welcome Back!' %}</h1>
+    </div>
+    {% include "web/includes/message.html" %}
+    <form class="user" action="{% url 'users:signin_view' %}{% if next %}?next={{next}}{% endif %}" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="form-group">
+            <input type="text" name="username" class="form-control form-control-lg" placeholder="{% trans 'Username' %}">
+        </div>
+        <div class="form-group">
+            <input type="password" name="password" class="form-control form-control-lg" placeholder="{% trans 'Password' %}">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">{% trans 'Login' %}</button>
+    </form>
+    <hr>
+    <div class="text-center"><a class="small" href="{% url 'users:reset_view' %}">{% trans 'Forgot Password?' %}</a></div>
+</div>
+{% endblock content %}
+{% block extrajs %}{% endblock extrajs %}

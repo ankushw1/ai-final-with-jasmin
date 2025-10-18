@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# Uploads and Files
+uploads/
+**/uploads/
+files/
+**/files/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Jasmin data
+jasmin-sms-gateway/jasmin-data/
+jasmin-sms-gateway/jasmin-logs/
+jasmin-sms-gateway/jasmin-config/
+
+# Package manager lock files (optional - uncomment if needed)
+# package-lock.json
+# pnpm-lock.yaml
+
