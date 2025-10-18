@@ -455,7 +455,7 @@ const sendConfirmationLoginEmail = async (email, ip) => {
 };
 
 exports.adminLogin = async (req, res) => {
-  const { email, password, otp, authMethod } = req.body;
+  const { email, password } = req.body;
   const ip = req.headers["x-forwarded-for"] || req.ip;
 
   try {
@@ -471,28 +471,29 @@ exports.adminLogin = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials!" });
     }
 
+    // OTP VERIFICATION COMMENTED OUT - Direct login without OTP
     // Handle authentication based on the selected method
-    if (authMethod === "email") {
-      // Verify Email OTP
-      const otpEntry = await Otp.findOne({ email }).sort({ expiresAt: -1 });
-      if (!otpEntry || otpEntry.otp !== otp || new Date() > otpEntry.expiresAt) {
-        return res.status(400).json({ message: "Invalid or expired OTP" });
-      }
-      await Otp.deleteOne({ email }); // Delete OTP after successful verification
-    } else if (authMethod === "google-auth") {
-      // Verify Google Authenticator OTP
-      const verified = speakeasy.totp.verify({
-        secret: admin.googleAuthSecret,
-        encoding: "base32",
-        token: otp,
-      });
+    // if (authMethod === "email") {
+    //   // Verify Email OTP
+    //   const otpEntry = await Otp.findOne({ email }).sort({ expiresAt: -1 });
+    //   if (!otpEntry || otpEntry.otp !== otp || new Date() > otpEntry.expiresAt) {
+    //     return res.status(400).json({ message: "Invalid or expired OTP" });
+    //   }
+    //   await Otp.deleteOne({ email }); // Delete OTP after successful verification
+    // } else if (authMethod === "google-auth") {
+    //   // Verify Google Authenticator OTP
+    //   const verified = speakeasy.totp.verify({
+    //     secret: admin.googleAuthSecret,
+    //     encoding: "base32",
+    //     token: otp,
+    //   });
 
-      if (!verified) {
-        return res.status(400).json({ message: "Invalid Google Authenticator OTP" });
-      }
-    } else {
-      return res.status(400).json({ message: "Invalid authentication method" });
-    }
+    //   if (!verified) {
+    //     return res.status(400).json({ message: "Invalid Google Authenticator OTP" });
+    //   }
+    // } else {
+    //   return res.status(400).json({ message: "Invalid authentication method" });
+    // }
 
     // Generate JWT token
     const token = jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, { expiresIn: "1h" });

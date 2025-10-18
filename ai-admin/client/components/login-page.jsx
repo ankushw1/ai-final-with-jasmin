@@ -37,16 +37,32 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      if (authMethod === "email") {
-        // Request Email OTP
-        await axiosInstance.post("/api/otp/send-otp", { email, password })
-        toast.success("OTP sent to your email. Please enter the OTP.")
-      } else {
-        // No need to send anything, just show OTP input for Google Authenticator
-        toast.info("Enter the OTP from your Google Authenticator app.")
-      }
+      // OTP VERIFICATION COMMENTED OUT - Direct login without OTP
+      // if (authMethod === "email") {
+      //   // Request Email OTP
+      //   await axiosInstance.post("/api/otp/send-otp", { email, password })
+      //   toast.success("OTP sent to your email. Please enter the OTP.")
+      // } else {
+      //   // No need to send anything, just show OTP input for Google Authenticator
+      //   toast.info("Enter the OTP from your Google Authenticator app.")
+      // }
+      // setIsOtpScreen(true)
 
-      setIsOtpScreen(true)
+      // Direct login without OTP
+      const response = await axiosInstance.post("/api/admin/login", {
+        email,
+        password,
+      })
+      const data = response.data
+
+      login({
+        token: data.token,
+        name: data.name,
+        role: data.role,
+      })
+
+      toast.success("Login successful!")
+      router.push("/admin")
     } catch (error) {
       console.error("Error during login request:", error)
       toast.error(error.response?.data?.message || "Login request failed. Please try again.")
@@ -117,8 +133,9 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <form onSubmit={isOtpScreen ? handleOtpSubmit : handleLoginRequest}>
-                  {!isOtpScreen ? (
+                <form onSubmit={handleLoginRequest}>
+                  {/* OTP SCREEN COMMENTED OUT */}
+                  {/* {!isOtpScreen ? ( */}
                     <>
                       <div className="space-y-4">
                         <div className="space-y-2">
@@ -160,7 +177,8 @@ export default function LoginPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-2">
+                        {/* AUTHENTICATION METHOD COMMENTED OUT */}
+                        {/* <div className="space-y-2">
                           <Label htmlFor="auth-method">Authentication Method</Label>
                           <Select value={authMethod} onValueChange={setAuthMethod}>
                             <SelectTrigger id="auth-method">
@@ -171,10 +189,10 @@ export default function LoginPage() {
                               <SelectItem value="google-auth">Google Authenticator</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
+                        </div> */}
                       </div>
                     </>
-                  ) : (
+                  {/* ) : (
                     <>
                       <div className="space-y-4">
                         <p className="text-center">
@@ -189,10 +207,10 @@ export default function LoginPage() {
                         />
                       </div>
                     </>
-                  )}
+                  )} */}
 
                   <Button type="submit" className="w-full mt-6" disabled={isLoading}>
-                    {isOtpScreen ? "Verify OTP" : "Login"}
+                    Login
                   </Button>
                 </form>
               </CardContent>

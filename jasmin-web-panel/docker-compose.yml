@@ -16,8 +16,8 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.pro
       ALLOWED_HOSTS: '*'
       REDIS_URI: redis://redis:6379/1
-      TELNET_HOST: jasmin-sms-gateway-jasmin-1
-      TELNET_PORT: 8990
+      TELNET_HOST: jasmin
+      TELNET_PORT: 1401
       SUBMIT_LOG: 1
     volumes:
       - web_public:/app/public
@@ -135,51 +135,51 @@ services:
     restart: unless-stopped
     healthcheck:
       disable: true
-  prometheus:
-    image: prom/prometheus:latest
-    restart: unless-stopped
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - monitoring_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-    depends_on:
-      - jasmin
-    deploy:
-      resources:
-        limits:
-          cpus: "${PROMETHEUS_CPU:-2}"
-          memory: ${PROMETHEUS_MEM:-512M}
-    security_opt:
-      - no-new-privileges:true
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${PROMETHEUS_PORT:-9090}:9090"
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - monitoring_data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--web.enable-lifecycle'
+  #   depends_on:
+  #     - jasmin
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "${PROMETHEUS_CPU:-2}"
+  #         memory: ${PROMETHEUS_MEM:-512M}
+  #   security_opt:
+  #     - no-new-privileges:true
 
-  grafana:
-    image: grafana/grafana
-    restart: unless-stopped
-    ports:
-      - "${GRAFANA_PORT:-2345}:3000"
-    environment:
-      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
-    volumes:
-      - ./provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./dashboards:/opt/grafana-dashboards:ro
-      - monitoring_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    deploy:
-      resources:
-        limits:
-          cpus: "${GRAFANA_CPU:-2}"
-          memory: ${GRAFANA_MEM:-512M}
-    security_opt:
-      - no-new-privileges:true
+  # grafana:
+  #   image: grafana/grafana
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${GRAFANA_PORT:-2345}:3000"
+  #   environment:
+  #     GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
+  #   volumes:
+  #     - ./provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+  #     - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+  #     - ./dashboards:/opt/grafana-dashboards:ro
+  #     - monitoring_data:/var/lib/grafana
+  #   depends_on:
+  #     - prometheus
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "${GRAFANA_CPU:-2}"
+  #         memory: ${GRAFANA_MEM:-512M}
+  #   security_opt:
+  #     - no-new-privileges:true
 volumes:
   web_public:
     driver: local
