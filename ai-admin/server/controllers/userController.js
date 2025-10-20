@@ -2,6 +2,7 @@ const axios = require("axios")
 const CreditHistory = require("../models/CreditHistory")
 const UserUpdateHistory = require("../models/UserUpdateHistory")
 const CustomerUserProfile = require("../models/CustomerUserProfile")
+const { listUsers, enableUser: enableJasminUser, disableUser: disableJasminUser, updateUserPermissions: updateJasminPermissions, updateUserBalance: updateJasminBalance } = require('../utils/jasminWrapper')
 
 const AUTH_HEADER = {
   headers: {
@@ -11,19 +12,17 @@ const AUTH_HEADER = {
 
 exports.getUsers = async (req, res) => {
   try {
-    const response = await axios.get(`${process.env.JASMIN_BASE_URL}/api/users/`, {
-      headers: {
-        Authorization: `Bearer ${process.env.JASMIN_API_KEY}`,
-      },
-    })
-
-    if (response.status === 200) {
-      res.status(200).json(response.data)
+    // Use Python script to get users from Jasmin
+    const result = await listUsers()
+    
+    if (result.success) {
+      // Users already have proper format from Python script
+      res.status(200).json({ users: result.users })
     } else {
-      res.status(500).json({ error: "Failed to fetch users" })
+      res.status(500).json({ error: "Failed to fetch users", details: result.error })
     }
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch users", details: error.response?.data || error.message })
+    res.status(500).json({ error: "Failed to fetch users", details: error.message })
   }
 }
 
@@ -110,20 +109,31 @@ exports.addPermissions = async (req, res) => {
   if (http_bulk !== undefined) updates.push(["mt_messaging_cred", "authorization", "http_bulk", http_bulk])
   if (hex_content !== undefined) updates.push(["mt_messaging_cred", "authorization", "hex_content", hex_content])
 
-  if (updates.length === 0) {
+  // Build permissions object for Python script
+  const permissions = {}
+  if (http_send !== undefined) permissions['http_send'] = http_send
+  if (dlr_method !== undefined) permissions['dlr_method'] = dlr_method
+  if (http_balance !== undefined) permissions['http_balance'] = http_balance
+  if (smpps_send !== undefined) permissions['smpps_send'] = smpps_send
+  if (priority !== undefined) permissions['priority'] = priority
+  if (long_content !== undefined) permissions['http_long_content'] = long_content
+  if (src_addr !== undefined) permissions['src_addr'] = src_addr
+  if (dlr_level !== undefined) permissions['dlr_level'] = dlr_level
+  if (http_rate !== undefined) permissions['http_rate'] = http_rate
+  if (valid_period !== undefined) permissions['validity_period'] = valid_period
+  if (http_bulk !== undefined) permissions['http_bulk'] = http_bulk
+  if (hex_content !== undefined) permissions['hex_content'] = hex_content
+
+  if (Object.keys(permissions).length === 0) {
     return res.status(400).json({ error: "No valid permissions to update" })
   }
 
-  const payload = updates
-
   try {
-    const response = await axios.patch(`${process.env.JASMIN_BASE_URL}/api/users/${user_name}/`, payload, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-
-    const permissionsData = {
+    // Use Python script to update permissions
+    const result = await updateJasminPermissions(user_name, permissions)
+    
+    if (result.success) {
+      const permissionsData = {
       httpSend: http_send === "1",
       dlrMethod: dlr_method === "1",
       httpBalance: http_balance === "1",
@@ -148,7 +158,7 @@ exports.addPermissions = async (req, res) => {
       updatedByRole: req.user?.role || 1,
       ipAddress: req.ip || req.headers["x-forwarded-for"],
       userAgent: req.headers["user-agent"],
-      rawJasminResponse: response.data,
+      rawJasminResponse: result,
       rawRequestData: req.query,
     })
 
@@ -182,7 +192,10 @@ exports.addPermissions = async (req, res) => {
       { upsert: true, new: true },
     )
 
-    res.status(200).json({ message: "Permissions updated", data: response.data })
+      res.status(200).json({ message: "Permissions updated successfully", data: result })
+    } else {
+      res.status(500).json({ error: "Failed to update permissions", details: result.error })
+    }
   } catch (error) {
     const failedUpdate = new UserUpdateHistory({
       username: user_name,
@@ -212,55 +225,31 @@ exports.addUserBalance = async (req, res) => {
     return res.status(400).json({ error: "Missing required query parameter: user_name" })
   }
 
-  // Get current balance before update
-  let previousBalance = 0
-  try {
-    const currentUserResponse = await axios.get(`${process.env.JASMIN_BASE_URL}/api/users/${user_name}/`, {
-      headers: {
-        Authorization: `Bearer ${process.env.JASMIN_API_KEY}`,
-      },
-    })
-    previousBalance = Number.parseFloat(currentUserResponse.data.mt_messaging_cred?.quota?.balance || 0)
-  } catch (error) {
-    console.log("Could not fetch current balance:", error.message)
-  }
-
-  // Convert params to a list of updates in the required format
-  const updates = []
-
+  // Filter valid balance parameters
+  const balanceData = {}
   Object.keys(params).forEach((key) => {
     if (key.startsWith("balance_") || key.startsWith("http_tput") || key.startsWith("smpp_tput")) {
-      if (key === "balance_amt") {
-        updates.push(["mt_messaging_cred", "quota", "balance", params[key]])
-      } else if (key === "balance_sms") {
-        updates.push(["mt_messaging_cred", "quota", "sms_count", params[key]])
-      } else if (key === "balance_percent") {
-        updates.push(["mt_messaging_cred", "quota", "early_percent", params[key]])
-      } else if (key === "http_tput") {
-        updates.push(["mt_messaging_cred", "quota", "http_throughput", params[key]])
-      } else if (key === "smpp_tput") {
-        updates.push(["mt_messaging_cred", "quota", "smpps_throughput", params[key]])
-      }
+      balanceData[key] = params[key]
     }
   })
 
-  const payload = updates
+  if (Object.keys(balanceData).length === 0) {
+    return res.status(400).json({ error: "No valid balance settings to update" })
+  }
 
   try {
-    const response = await axios.patch(`${process.env.JASMIN_BASE_URL}/api/users/${user_name}/`, payload, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-
-    const balanceData = {
-      previousBalance,
-      newBalance: Number.parseFloat(params.balance_amt || 0),
-      balanceSms: Number.parseFloat(params.balance_sms || 0),
-      balancePercent: Number.parseFloat(params.balance_percent || 0),
-      httpThroughput: Number.parseFloat(params.http_tput || 0),
-      smppThroughput: Number.parseFloat(params.smpp_tput || 0),
-    }
+    // Use Python script to update balance
+    const result = await updateJasminBalance(user_name, balanceData)
+    
+    if (result.success) {
+      const balanceData = {
+        previousBalance: 0, // We'll need to get this from user details if needed
+        newBalance: Number.parseFloat(params.balance_amt || 0),
+        balanceSms: Number.parseFloat(params.balance_sms || 0),
+        balancePercent: Number.parseFloat(params.balance_percent || 0),
+        httpThroughput: Number.parseFloat(params.http_tput || 0),
+        smppThroughput: Number.parseFloat(params.smpp_tput || 0),
+      }
 
     const updateHistory = new UserUpdateHistory({
       username: user_name,
@@ -272,7 +261,7 @@ exports.addUserBalance = async (req, res) => {
       updatedByRole: req.user?.role || 1,
       ipAddress: req.ip || req.headers["x-forwarded-for"],
       userAgent: req.headers["user-agent"],
-      rawJasminResponse: response.data,
+      rawJasminResponse: result,
       rawRequestData: req.query,
     })
 
@@ -299,7 +288,10 @@ exports.addUserBalance = async (req, res) => {
       { upsert: true, new: true },
     )
 
-    res.status(200).json({ message: "Balance updated", data: response.data })
+      res.status(200).json({ message: "Balance updated successfully", data: result })
+    } else {
+      res.status(500).json({ error: "Failed to update balance", details: result.error })
+    }
   } catch (error) {
     const failedUpdate = new UserUpdateHistory({
       username: user_name,
@@ -369,14 +361,10 @@ exports.enableUser = async (req, res) => {
   }
 
   try {
-    const response = await axios.put(`${process.env.JASMIN_BASE_URL}/api/users/${uid}/enable/`, null, {
-      headers: {
-        Authorization: `Bearer ${process.env.JASMIN_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    })
-
-    if (response.status === 200) {
+    // Use Python script to enable user
+    const result = await enableJasminUser(uid)
+    
+    if (result.success) {
       const updateHistory = new UserUpdateHistory({
         username: uid,
         uid: uid,
@@ -390,7 +378,7 @@ exports.enableUser = async (req, res) => {
         updatedByRole: req.user?.role || 1,
         ipAddress: req.ip || req.headers["x-forwarded-for"],
         userAgent: req.headers["user-agent"],
-        rawJasminResponse: response.data,
+        rawJasminResponse: result,
       })
 
       await updateHistory.save()
@@ -409,14 +397,14 @@ exports.enableUser = async (req, res) => {
         { upsert: true, new: true },
       )
 
-      res.status(200).json({ message: "User enabled successfully", data: response.data })
+      res.status(200).json({ message: "User enabled successfully", data: result })
     } else {
-      res.status(500).json({ error: "Failed to enable user" })
+      res.status(500).json({ error: "Failed to enable user", details: result.error })
     }
   } catch (error) {
     res.status(500).json({
       error: "Failed to enable user",
-      details: error.response?.data || error.message,
+      details: error.message,
     })
   }
 }
@@ -429,14 +417,10 @@ exports.disableUser = async (req, res) => {
   }
 
   try {
-    const response = await axios.put(`${process.env.JASMIN_BASE_URL}/api/users/${uid}/disable/`, null, {
-      headers: {
-        Authorization: `Bearer ${process.env.JASMIN_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    })
-
-    if (response.status === 200) {
+    // Use Python script to disable user
+    const result = await disableJasminUser(uid)
+    
+    if (result.success) {
       const updateHistory = new UserUpdateHistory({
         username: uid,
         uid: uid,
@@ -450,7 +434,7 @@ exports.disableUser = async (req, res) => {
         updatedByRole: req.user?.role || 1,
         ipAddress: req.ip || req.headers["x-forwarded-for"],
         userAgent: req.headers["user-agent"],
-        rawJasminResponse: response.data,
+        rawJasminResponse: result,
       })
 
       await updateHistory.save()
@@ -469,14 +453,14 @@ exports.disableUser = async (req, res) => {
         { upsert: true, new: true },
       )
 
-      res.status(200).json({ message: "User disabled successfully", data: response.data })
+      res.status(200).json({ message: "User disabled successfully", data: result })
     } else {
-      res.status(500).json({ error: "Failed to disable user" })
+      res.status(500).json({ error: "Failed to disable user", details: result.error })
     }
   } catch (error) {
     res.status(500).json({
       error: "Failed to disable user",
-      details: error.response?.data || error.message,
+      details: error.message,
     })
   }
 }

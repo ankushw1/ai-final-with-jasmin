@@ -124,18 +124,18 @@ export default function ManageSMSUsers() {
     // Pre-fill permissions
     const auth = user.mt_messaging_cred?.authorization || {}
     setUserPermissions({
-      http_send: auth.http_send === "True",
-      dlr_method: auth.http_dlr_method === "True",
-      http_balance: auth.http_balance === "True",
-      smpps_send: auth.smpps_send === "True",
-      priority: auth.priority === "True",
-      long_content: auth.http_long_content === "True",
-      src_addr: auth.src_addr === "True",
-      dlr_level: auth.dlr_level === "True",
-      http_rate: auth.http_rate === "True",
-      valid_period: auth.validity_period === "True",
-      http_bulk: auth.http_bulk === "True",
-      hex_content: auth.hex_content === "True",
+      http_send: auth.http_send === "1",
+      dlr_method: auth.dlr_method === "1",
+      http_balance: auth.http_balance === "1",
+      smpps_send: auth.smpps_send === "1",
+      priority: auth.priority === "1",
+      long_content: auth.http_long_content === "1",
+      src_addr: auth.src_addr === "1",
+      dlr_level: auth.dlr_level === "1",
+      http_rate: auth.http_rate === "1",
+      valid_period: auth.validity_period === "1",
+      http_bulk: auth.http_bulk === "1",
+      hex_content: auth.hex_content === "1",
     })
 
     setIsModalOpen(true)

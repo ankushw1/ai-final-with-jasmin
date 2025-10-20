@@ -63,6 +63,27 @@ async function deleteGroup(gid) {
 }
 
 /**
+ * List all users from Jasmin
+ */
+async function listUsers() {
+  return await executePythonScript('list_users', []);
+}
+
+/**
+ * Enable a user in Jasmin
+ */
+async function enableUser(uid) {
+  return await executePythonScript('enable_user', [uid]);
+}
+
+/**
+ * Disable a user in Jasmin
+ */
+async function disableUser(uid) {
+  return await executePythonScript('disable_user', [uid]);
+}
+
+/**
  * Create complete customer (group + user with 1 sec delay in Python)
  * This handles everything in one call
  */
@@ -78,12 +99,41 @@ async function deleteCustomer(username) {
   return await executePythonScript('delete_customer', [username]);
 }
 
+/**
+ * Update user permissions
+ */
+async function updateUserPermissions(uid, permissions) {
+  // Convert permissions object to command line args
+  const args = [];
+  for (const [key, value] of Object.entries(permissions)) {
+    args.push(`${key}=${value}`);
+  }
+  return await executePythonScript('update_permissions', [uid, ...args]);
+}
+
+/**
+ * Update user balance
+ */
+async function updateUserBalance(uid, balanceData) {
+  // Convert balance data object to command line args
+  const args = [];
+  for (const [key, value] of Object.entries(balanceData)) {
+    args.push(`${key}=${value}`);
+  }
+  return await executePythonScript('update_balance', [uid, ...args]);
+}
+
 module.exports = {
   createGroup,
   createUser,
   deleteUser,
   deleteGroup,
   createCustomer,
-  deleteCustomer
+  deleteCustomer,
+  listUsers,
+  enableUser,
+  disableUser,
+  updateUserPermissions,
+  updateUserBalance
 };
 
