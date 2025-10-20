@@ -23,7 +23,8 @@ const customerSchema = new mongoose.Schema({
 
   assignedAccountManager: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Management", 
+    ref: "Management",
+    required: false, // Optional field
   },
 
   // Channels assigned to the Customer

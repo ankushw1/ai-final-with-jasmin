@@ -6,6 +6,7 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 const CustomerUser = require("../models/CustomerUser");
 const qs = require('qs');
+const { createCustomer: createJasminCustomer, deleteCustomer: deleteJasminCustomer } = require('../utils/jasminWrapper');
 
 const sendConfirmationEmail = async (primaryEmail, username, ip, password) => {
  const transporter = nodemailer.createTransport({
@@ -424,7 +425,6 @@ exports.createCustomer = async (req, res) => {
   } = req.body;
 
   const ip = req.headers["x-forwarded-for"] || req.ip;
-  const JASMIN_BASE_URL = process.env.JASMIN_BASE_URL;
   const groupname = `${username}_group`;
   const uid = `${username}_user`;
 
@@ -484,28 +484,14 @@ if (existingUser) {
       channels,
       createdByAdmin: req.user.role === 1 ? req.user.id : undefined,
       createdByReseller: req.user.role === 2 ? req.user.id : undefined,
-      assignedAccountManager,
+      assignedAccountManager: assignedAccountManager && assignedAccountManager !== "none" ? assignedAccountManager : undefined,
     });
 
     await newCustomer.save();
     await sendConfirmationEmail(primaryEmail, username, ip, password);
 
-    const groupPayload = new URLSearchParams({ gid: groupname });
-    await axios.post(`${JASMIN_BASE_URL}/api/groups/`, groupPayload, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    }).catch(() => { });
-
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 10 seconds
-
-    const userPayload = new URLSearchParams({
-      uid,
-      gid: groupname,
-      username,
-      password: username,
-    });
-    await axios.post(`${JASMIN_BASE_URL}/api/users/`, userPayload, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    }).catch(() => { });
+    // Create customer in Jasmin (group + user with 1 sec delay)
+    await createJasminCustomer(username, username).catch(() => { });
 
     await new CustomerUser({
       usid: username,
@@ -606,8 +592,8 @@ exports.updateCustomer = async (req, res) => {
 
     let updateQuery = {};
 
-    // ✅ If assignedAccountManager is empty, remove it from MongoDB
-    if (updates.assignedAccountManager === "") {
+    // ✅ If assignedAccountManager is empty or "none", remove it from MongoDB
+    if (updates.assignedAccountManager === "" || updates.assignedAccountManager === "none") {
       updateQuery.$unset = { assignedAccountManager: "" }; // Removes the field
       delete updates.assignedAccountManager;
     } else {
@@ -633,18 +619,9 @@ exports.deleteCustomer = async (req, res) => {
       return res.status(404).json({ message: "Customer not found!" });
     }
 
-    const JASMIN_BASE_URL = process.env.JASMIN_BASE_URL;
-    const deleteUserUrl = `${JASMIN_BASE_URL}/api/users/${customer.username}_user/`;
-    const deleteGroupUrl = `${JASMIN_BASE_URL}/api/groups/${customer.username}_group/`;
-
-    // Try deleting the Jasmin user
+    // Delete customer from Jasmin (user + group)
     try {
-      await axios.delete(deleteUserUrl);
-    } catch (_) { }
-
-    // Try deleting the Jasmin group
-    try {
-      await axios.delete(deleteGroupUrl);
+      await deleteJasminCustomer(customer.username);
     } catch (_) { }
 
     // Delete local records
